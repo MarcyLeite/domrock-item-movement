@@ -20,32 +20,28 @@ result_df = pandas.DataFrame(
     ]
 )
 
-for item_df in item_df_list:
-    code = item_df.iloc[0]['item']
-    balance_line = balance_df.loc[balance_df['item'] == code]
+def merge_entry_leave(date_df: pandas.DataFrame):
+    entry_quantity = 0
+    leave_quantity = 0
 
-    init_quantity = balance_line.iloc[0]['qtd_inicio']
-    init_value = balance_line.iloc[0]['valor_inicio']
-
-
-    date_df_list: list[pandas.DataFrame] = []
-    item_df.sort_values('data_lancamento').groupby('data_lancamento').apply(lambda df: date_df_list.append(df))
+    entry_value = 0
+    leave_value = 0
+    for movement in date_df.values.tolist():
+        if movement[1] == 'Ent':
+            entry_quantity += movement[3]
+            entry_value += movement[4]
+        else:
+            leave_quantity += movement[3]
+            leave_value += movement[4]
     
+    return entry_quantity, leave_quantity, entry_value, leave_value
+        
+
+def proccess_date_df_list(init_quantity: int, init_value):
     for date_df in date_df_list:
         timestamp = date_df.iloc[0]['data_lancamento']
-        entry_quantity = 0
-        leave_quantity = 0
 
-        entry_value = 0
-        leave_value = 0
-        for movement in date_df.values.tolist():
-            if movement[1] == 'Ent':
-                entry_quantity += movement[3]
-                entry_value += movement[4]
-            else:
-                leave_quantity += movement[3]
-                leave_value += movement[4]
-          
+        entry_quantity, leave_quantity, entry_value, leave_value = merge_entry_leave(date_df)
           
         end_quantity = init_quantity + entry_quantity - leave_quantity
         end_value = init_value + entry_value - leave_value
@@ -56,5 +52,17 @@ for item_df in item_df_list:
 
         init_quantity = end_quantity
         init_value = end_value
+
+for item_df in item_df_list:
+    code = item_df.iloc[0]['item']
+    balance_line = balance_df.loc[balance_df['item'] == code]
+
+    init_quantity = balance_line.iloc[0]['qtd_inicio']
+    init_value = balance_line.iloc[0]['valor_inicio']
+
+    date_df_list: list[pandas.DataFrame] = []
+    item_df.sort_values('data_lancamento').groupby('data_lancamento').apply(lambda df: date_df_list.append(df))
+    proccess_date_df_list(init_quantity, init_value)    
+
 
 result_df.to_csv('./data/result.csv')
